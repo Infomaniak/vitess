@@ -1,0 +1,28 @@
+services:
+  - name: docker:19.03.5-dind
+    command: [ "--mtu=1500" ]
+
+variables:
+  DOCKER_HOST: tcp://localhost:2375
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: ""
+
+
+build_docker_image:
+  stage: deploy
+  image: docker:stable
+  tags:
+    - docker-executor
+    - kubernetes
+    - shared
+  rules:
+    - if: $CI_COMMIT_TAG
+      allow_failure: false
+      when: on_success
+    - when: never
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker login -u $CI_DEPENDENCY_PROXY_USER -p $CI_DEPENDENCY_PROXY_PASSWORD $CI_DEPENDENCY_PROXY_SERVER
+  script:
+    - docker build -t ${CI_REGISTRY_IMAGE}:${CI_COMMIT_TAG} --file docker/lite/Dockerfile .
+    - docker push ${CI_REGISTRY_IMAGE}:${CI_COMMIT_TAG}
